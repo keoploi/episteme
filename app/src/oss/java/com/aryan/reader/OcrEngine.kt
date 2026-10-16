@@ -22,11 +22,13 @@ package com.aryan.reader
 import android.content.Context
 import android.graphics.Bitmap
 import android.graphics.Canvas
+import android.graphics.Color
 import android.graphics.ColorMatrix
 import android.graphics.ColorMatrixColorFilter
 import android.graphics.Paint
 import android.graphics.Rect
 import android.graphics.RectF
+import android.util.Log
 import com.aryan.reader.pdf.OcrLanguage
 import com.aryan.reader.pdf.ocr.OcrBlock
 import com.aryan.reader.pdf.ocr.OcrElement
@@ -35,6 +37,7 @@ import com.aryan.reader.pdf.ocr.OcrResult
 import com.aryan.reader.pdf.ocr.OcrSymbol
 import com.googlecode.tesseract.android.ResultIterator
 import com.googlecode.tesseract.android.TessBaseAPI
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -63,6 +66,8 @@ import kotlin.math.roundToInt
  * language switch ([init]) or [release] recycles it.
  */
 object OcrEngine {
+    private const val TAG = "OcrEngine"
+
     // ~185 DPI on a portrait A4 scan; above that the fast models burn time
     // without improving accuracy.
     private const val MAX_OCR_WIDTH = 1600
@@ -96,6 +101,7 @@ object OcrEngine {
             try {
                 lock.withLock { prepareLocked() }
             } catch (e: Exception) {
+                Log.e(TAG, "Tesseract warm-up failed", e)
                 Timber.e(e, "Tesseract warm-up failed")
             }
         }
@@ -115,6 +121,8 @@ object OcrEngine {
                     ocrBitmap(tess, bitmap)
                 }
             } catch (e: Exception) {
+                if (e is CancellationException) throw e
+                Log.e(TAG, "Tesseract OCR failed", e)
                 Timber.e(e, "Tesseract OCR failed")
                 null
             }
@@ -143,10 +151,12 @@ object OcrEngine {
         }
 
         val context = appContext ?: run {
+            Log.w(TAG, "Tesseract skipped: no application context registered")
             Timber.w("Tesseract skipped: no application context registered")
             return null
         }
         val dataPath = ensureTessdata(context, langs) ?: run {
+            Log.w(TAG, "Tesseract skipped: tessdata files unavailable for $langs")
             Timber.w("Tesseract skipped: tessdata files unavailable for $langs")
             return null
         }
@@ -159,6 +169,7 @@ object OcrEngine {
                 if (cache.isFile && cache.name.endsWith(".traineddata")) cache.delete()
             }
             started.recycle()
+            Log.e(TAG, "Tesseract init failed for $langs")
             Timber.e("Tesseract init failed for $langs")
             return null
         }
@@ -185,6 +196,7 @@ object OcrEngine {
         val bundled = try {
             context.assets.list(TESSDATA_DIR).orEmpty().filter { it.endsWith(".traineddata") }
         } catch (e: Exception) {
+            Log.e(TAG, "Failed to list bundled tessdata", e)
             Timber.e(e, "Failed to list bundled tessdata")
             emptyList()
         }
@@ -201,6 +213,7 @@ object OcrEngine {
                         tmp.delete()
                     }
                 } catch (e: Exception) {
+                    Log.e(TAG, "Failed to copy $name into filesDir", e)
                     Timber.e(e, "Failed to copy $name into filesDir")
                 }
             }
@@ -250,10 +263,12 @@ object OcrEngine {
         val targetWidth = min(bitmap.width, MAX_OCR_WIDTH)
         val targetHeight = (targetWidth.toLong() * bitmap.height / bitmap.width).toInt().coerceAtLeast(1)
         val gray = Bitmap.createBitmap(targetWidth, targetHeight, Bitmap.Config.ARGB_8888)
+        val canvas = Canvas(gray)
+        canvas.drawColor(Color.WHITE)
         val paint = Paint(Paint.FILTER_BITMAP_FLAG or Paint.ANTI_ALIAS_FLAG).apply {
             colorFilter = ColorMatrixColorFilter(ColorMatrix().apply { setSaturation(0f) })
         }
-        Canvas(gray).drawBitmap(
+        canvas.drawBitmap(
             bitmap,
             null,
             RectF(0f, 0f, targetWidth.toFloat(), targetHeight.toFloat()),
@@ -338,22 +353,22 @@ object OcrEngine {
         }
 
         while (true) {
+            val startsBlock = first || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_BLOCK)
+            val startsLine = startsBlock || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
+            val startsWord = startsLine || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_WORD)
+
+            if (startsBlock) {
+                flushBlock()
+            } else if (startsLine) {
+                flushLine()
+            } else if (startsWord) {
+                flushWord()
+            }
+
             val symbolText = iterator.getUTF8Text(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)
             val symbolBox = iterator.getBoundingRect(TessBaseAPI.PageIteratorLevel.RIL_SYMBOL)
 
-            if (symbolText != null && symbolText.isNotEmpty() && symbolBox != null && !symbolBox.isEmpty) {
-                val startsBlock = first || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_BLOCK)
-                val startsLine = startsBlock || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_TEXTLINE)
-                val startsWord = startsLine || iterator.isAtBeginningOf(TessBaseAPI.PageIteratorLevel.RIL_WORD)
-
-                if (startsBlock) {
-                    flushBlock()
-                } else if (startsLine) {
-                    flushLine()
-                } else if (startsWord) {
-                    flushWord()
-                }
-
+            if (!symbolText.isNullOrEmpty() && symbolBox != null && !symbolBox.isEmpty) {
                 wordSymbols.add(
                     OcrSymbol(
                         text = symbolText,

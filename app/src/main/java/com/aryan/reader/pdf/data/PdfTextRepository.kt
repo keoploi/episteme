@@ -208,7 +208,9 @@ class PdfTextRepository(context: Context) {
                                 val aspectRatio = ptrWidth.toFloat() / ptrHeight.toFloat()
                                 val targetHeight = (targetWidth / aspectRatio).toInt().coerceAtLeast(1)
 
-                                bitmap = createBitmap(targetWidth, targetHeight)
+                                bitmap = createBitmap(targetWidth, targetHeight).apply {
+                                    eraseColor(android.graphics.Color.WHITE)
+                                }
                                 page.renderPageBitmap(bitmap!!, 0, 0, targetWidth, targetHeight, false)
                             }
                         }
@@ -318,7 +320,9 @@ class PdfTextRepository(context: Context) {
                         if (pageWidth > 0 && pageHeight > 0) {
                             val aspectRatio = pageWidth.toFloat() / pageHeight.toFloat()
                             val targetHeight = (targetWidth / aspectRatio).toInt().coerceAtLeast(1)
-                            bitmap = createBitmap(targetWidth, targetHeight)
+                            bitmap = createBitmap(targetWidth, targetHeight).apply {
+                                eraseColor(android.graphics.Color.WHITE)
+                            }
                             page.renderPageBitmap(bitmap!!, 0, 0, targetWidth, targetHeight, false)
                         }
                     }
@@ -387,7 +391,9 @@ class PdfTextRepository(context: Context) {
                         val aspectRatio = ptrWidth.toFloat() / ptrHeight.toFloat()
                         targetHeight = (targetWidth / aspectRatio).toInt().coerceAtLeast(1)
 
-                        bitmap = createBitmap(targetWidth, targetHeight)
+                        bitmap = createBitmap(targetWidth, targetHeight).apply {
+                            eraseColor(android.graphics.Color.WHITE)
+                        }
                         page.renderPageBitmap(bitmap!!, 0, 0, targetWidth, targetHeight, false)
                     }
                 }

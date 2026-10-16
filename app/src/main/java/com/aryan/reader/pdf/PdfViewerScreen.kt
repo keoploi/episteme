@@ -4113,8 +4113,13 @@ private fun PdfViewerScreenContent(
         pdfTextRepository.searchBookFlow(currentBookId!!, query).conflate().collect { matches ->
             val results = mutableListOf<SearchResult>()
 
+            val isAscii = query.all { it.code in 0..127 }
             val regexPattern = try {
-                Regex("(?i)\\b${Regex.escape(query)}")
+                if (isAscii) {
+                    Regex("(?i)\\b${Regex.escape(query)}")
+                } else {
+                    Regex("(?i)${Regex.escape(query)}")
+                }
             } catch (_: Exception) {
                 Regex("(?i)${Regex.escape(query)}")
             }
@@ -5061,6 +5066,7 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
                         ocrLanguage = newLanguage
                         saveOcrLanguage(context, newLanguage)
                         hasSelectedOcrLanguage = true
+                        OcrHelper.init(newLanguage)
 
                         currentBookId?.let { id ->
                             isBackgroundIndexing = true
@@ -5119,9 +5125,11 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
                         ocrLanguage = selected
                         saveOcrLanguage(context, selected)
                         hasSelectedOcrLanguage = true
+                        OcrHelper.init(selected)
 
                         currentBookId?.let {
                             pdfTextRepository.setBookLanguage(it, selected.name)
+                            indexingRestartKey++
                         }
 
                         showOcrLanguageDialog = false
