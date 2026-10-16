@@ -3900,7 +3900,9 @@ private fun PdfViewerScreenContent(
 
     var isOcrScanning by remember { mutableStateOf(false) }
 
-    LaunchedEffect(effectivePdfUri, currentBookId, totalPages) {
+    var indexingRestartKey by remember { mutableIntStateOf(0) }
+
+    LaunchedEffect(effectivePdfUri, currentBookId, totalPages, indexingRestartKey) {
         if (currentBookId == null || totalPages == 0) return@LaunchedEffect
         if (isBackgroundIndexing && backgroundIndexingProgress > 0f) return@LaunchedEffect
         val selectedDocumentType = effectiveFileType
@@ -5065,6 +5067,8 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
                                 pdfTextRepository.setBookLanguage(id, newLanguage.name)
                             }
                             isBackgroundIndexing = false
+                            backgroundIndexingProgress = 0f
+                            indexingRestartKey++
                         }
 
                         pendingActionAfterOcrSelection?.invoke()
