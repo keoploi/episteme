@@ -322,7 +322,7 @@ dependencies {
     implementation("org.zwobble.mammoth:mammoth:1.4.2")
 
     // Offline OCR (OSS build only): Tesseract with OpenMP for multi-threaded recognition.
-    ossImplementation(libs.tesseract4android)
+    add("ossImplementation", libs.tesseract4android)
 
     implementation("com.materialkolor:material-kolor:5.0.0-alpha07")
 
