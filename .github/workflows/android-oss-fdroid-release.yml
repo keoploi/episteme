@@ -46,7 +46,7 @@ jobs:
               # F-Droid usually signs later; add a temporary debug-style key for
               # a directly installable test APK from GitHub Actions.
               keytool -genkeypair -v -keystore /tmp/test-keystore.jks -storepass password -alias testkey -keypass password -keyalg RSA -keysize 2048 -validity 10000 -dname "CN=Test Key, O=Episteme, C=US"
-              printf 'MYAPP_RELEASE_STORE_FILE=/tmp/test-keystore.jks\nMYAPP_RELEASE_STORE_PASSWORD=password\nMYAPP_RELEASE_KEY_ALIAS=testkey\nMYAPP_RELEASE_KEY_PASSWORD=password\n' > local.properties
+              { echo "MYAPP_RELEASE_STORE_FILE=/tmp/test-keystore.jks"; echo "MYAPP_RELEASE_STORE_PASSWORD=password"; echo "MYAPP_RELEASE_KEY_ALIAS=testkey"; echo "MYAPP_RELEASE_KEY_PASSWORD=password"; } > local.properties
               ./gradlew :app:assembleOssRelease --no-build-cache --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g
               ./gradlew :app:assembleOssReleaseOffline --no-build-cache --max-workers=1 -Pkotlin.daemon.jvmargs=-Xmx4g
               cp app/build/outputs/renamed-apk/ossRelease/*.apk /release-assets/
