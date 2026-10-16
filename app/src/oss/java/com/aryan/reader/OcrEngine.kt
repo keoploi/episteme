@@ -33,6 +33,7 @@ import com.aryan.reader.pdf.ocr.OcrElement
 import com.aryan.reader.pdf.ocr.OcrLine
 import com.aryan.reader.pdf.ocr.OcrResult
 import com.aryan.reader.pdf.ocr.OcrSymbol
+import com.googlecode.tesseract.android.ResultIterator
 import com.googlecode.tesseract.android.TessBaseAPI
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -221,7 +222,7 @@ object OcrEngine {
             // RTL, matching what the shared search regex and selection code
             // expect, and Compose bidi-renders it as written.
             val text = tess.getUTF8Text().orEmpty()
-            val result = tess.resultIterator?.let { iterator ->
+            val result = tess.resultIterator?.let { iterator: ResultIterator ->
                 try {
                     collectResults(iterator, text, prepared, input.width.toFloat(), input.height.toFloat())
                 } finally {
@@ -274,7 +275,7 @@ object OcrEngine {
      * processed bitmap space, so every box is scaled back into the input space.
      */
     private fun collectResults(
-        iterator: TessBaseAPI.ResultIterator,
+        iterator: ResultIterator,
         text: String,
         prepared: ProcessedBitmap,
         inputWidth: Float,
