@@ -146,7 +146,7 @@ object OcrEngine {
             Timber.w("Tesseract skipped: no application context registered")
             return null
         }
-        val dataPath = ensureTessdata(context) ?: run {
+        val dataPath = ensureTessdata(context, langs) ?: run {
             Timber.w("Tesseract skipped: tessdata files unavailable for $langs")
             return null
         }
@@ -178,7 +178,7 @@ object OcrEngine {
     }
 
     /** Copies bundled traineddata into filesDir on first run; returns the init data path. */
-    private fun ensureTessdata(context: Context): String? {
+    private fun ensureTessdata(context: Context, langs: String): String? {
         val destDir = File(context.filesDir, TESSDATA_DIR)
         if (!destDir.exists()) destDir.mkdirs()
 
@@ -206,7 +206,7 @@ object OcrEngine {
             }
         }
 
-        val langsReady = requestedLangs.split('+')
+        val langsReady = langs.split('+')
             .all { lang -> File(destDir, "$lang.traineddata").length() >= MIN_TRAINEDDATA_BYTES }
         return if (bundled.isNotEmpty() && langsReady) context.filesDir.absolutePath else null
     }

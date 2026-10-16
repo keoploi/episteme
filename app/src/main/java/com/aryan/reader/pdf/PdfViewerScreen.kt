@@ -3908,6 +3908,8 @@ private fun PdfViewerScreenContent(
         val selectedDocumentType = effectiveFileType
         if (selectedDocumentType != FileType.PDF && selectedDocumentType != FileType.PPTX) return@LaunchedEffect
 
+        val startBackgroundIndexingPage = pagerState.currentPage
+        val thisIndexingRestartKey = indexingRestartKey
         withContext(Dispatchers.IO) {
             val storedLang = pdfTextRepository.getBookLanguage(currentBookId!!)
             if (storedLang == null) {
@@ -3934,9 +3936,8 @@ private fun PdfViewerScreenContent(
                     "Indexer: Starting background indexing for ${totalPages - existingPages.size} pages."
                 )
 
-                val currentBackgroundPage = pagerState.currentPage
                 val pagesToIndex = (0 until totalPages).filter { !existingPages.contains(it) }
-                    .sortedBy { kotlin.math.abs(it - currentBackgroundPage) }
+                    .sortedBy { kotlin.math.abs(it - startBackgroundIndexingPage) }
                 val totalToDo = pagesToIndex.size
                 var completed = 0
 
@@ -4012,7 +4013,9 @@ private fun PdfViewerScreenContent(
                 } catch (e: Exception) {
                     Timber.e(e, "Indexer: Cleanup failed")
                 }
-                isBackgroundIndexing = false
+                if (thisIndexingRestartKey == indexingRestartKey) {
+                    isBackgroundIndexing = false
+                }
             }
         }
     }
