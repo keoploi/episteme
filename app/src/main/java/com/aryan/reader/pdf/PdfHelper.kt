@@ -118,7 +118,11 @@ enum class OcrLanguage(@StringRes val displayNameRes: Int) {
     DEVANAGARI(R.string.ocr_language_devanagari),
     CHINESE(R.string.ocr_language_chinese),
     JAPANESE(R.string.ocr_language_japanese),
-    KOREAN(R.string.ocr_language_korean)
+    KOREAN(R.string.ocr_language_korean),
+    // Two Tesseract bundles for the OSS build: English+Persian is more
+    // accurate on mixed documents; fas-only is per-page faster.
+    PERSIAN(R.string.ocr_language_persian),
+    PERSIAN_FAST(R.string.ocr_language_persian_fast)
 }
 
 internal data class OcrSymbolInfo(

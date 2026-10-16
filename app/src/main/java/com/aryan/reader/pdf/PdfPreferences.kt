@@ -106,7 +106,7 @@ internal fun defaultPdfHiddenTools(): Set<String> {
 }
 
 internal fun isPdfReaderToolAvailable(tool: PdfReaderTool): Boolean {
-    return BuildConfig.IS_PRO || tool != PdfReaderTool.OCR_LANGUAGE
+    return BuildConfig.IS_PRO || BuildConfig.FLAVOR == "oss" || tool != PdfReaderTool.OCR_LANGUAGE
 }
 
 internal fun defaultPdfToolOrder(): List<PdfReaderTool> = PdfReaderTool.entries.filter(::isPdfReaderToolAvailable)

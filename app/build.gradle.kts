@@ -321,6 +321,9 @@ dependencies {
     implementation("io.legere:pdfiumandroid:2.0.0")
     implementation("org.zwobble.mammoth:mammoth:1.4.2")
 
+    // Offline OCR (OSS build only): Tesseract with OpenMP for multi-threaded recognition.
+    ossImplementation(libs.tesseract4android)
+
     implementation("com.materialkolor:material-kolor:5.0.0-alpha07")
 
     debugImplementation("org.tensorflow:tensorflow-lite:2.17.0")

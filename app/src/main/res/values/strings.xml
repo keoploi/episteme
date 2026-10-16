@@ -1755,6 +1755,9 @@
     <string name="ocr_language_japanese">Japanese + English</string>
     <string name="ocr_language_korean">Korean + English</string>
 
+    <string name="ocr_language_persian">Persian + English</string>
+    <string name="ocr_language_persian_fast">Persian only (faster)</string>
+
     <!-- UniversalDocument -->
     <string name="msg_page_unavailable">Page Unavailable</string>
 

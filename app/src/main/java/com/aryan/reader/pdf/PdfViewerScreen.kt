@@ -566,7 +566,7 @@ fun PdfViewerScreen(
     val executeWithOcrCheck = remember(hasSelectedOcrLanguage, ownsPaneGlobals) {
         { action: () -> Unit ->
             if (ownsPaneGlobals) {
-                if (isOss || hasSelectedOcrLanguage) {
+                if (hasSelectedOcrLanguage) {
                     action()
                 } else {
                     pendingActionAfterOcrSelection = action
@@ -3932,7 +3932,9 @@ private fun PdfViewerScreenContent(
                     "Indexer: Starting background indexing for ${totalPages - existingPages.size} pages."
                 )
 
+                val currentBackgroundPage = pagerState.currentPage
                 val pagesToIndex = (0 until totalPages).filter { !existingPages.contains(it) }
+                    .sortedBy { kotlin.math.abs(it - currentBackgroundPage) }
                 val totalToDo = pagesToIndex.size
                 var completed = 0
 
@@ -5042,7 +5044,7 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
     }
 
     showReindexDialog?.let { newLanguage ->
-        if (BuildConfig.IS_PRO) {
+        if (BuildConfig.IS_PRO || isOss) {
             SharedMobileInfoConfirmationDialog(
                 title = stringResource(R.string.title_reindex_document),
                 body = stringResource(R.string.desc_reindex_document_warning),
@@ -5077,7 +5079,7 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
         }
     }
 
-    if (showOcrLanguageDialog && !isOss) {
+    if (showOcrLanguageDialog) {
         SharedMobileSingleChoiceDialog(
             title = stringResource(R.string.title_select_ocr_language),
             description = stringResource(R.string.desc_select_ocr_language),
@@ -8952,7 +8954,7 @@ private fun androidx.compose.foundation.layout.BoxWithConstraintsScope.PdfViewer
         },
         onShowCustomizeTools = { if (ownsPaneGlobals) showCustomizeToolsSheet = true },
         onShowOcrLanguage = {
-            if (ownsPaneGlobals && !isOss) {
+            if (ownsPaneGlobals) {
                 hasSelectedOcrLanguage = true
                 showOcrLanguageDialog = true
             }

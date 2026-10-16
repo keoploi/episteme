@@ -110,3 +110,6 @@
 -keepclasseswithmembers class com.aryan.reader.shared.docparse.Md4cJni {
     native <methods>;
 }
+
+# Tesseract4Android JNI bridge: native method names must match JNI symbols.
+-keep class com.googlecode.tesseract.android.** { *; }

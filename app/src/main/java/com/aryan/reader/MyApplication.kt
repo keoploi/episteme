@@ -48,6 +48,7 @@ class MyApplication : Application(), ImageLoaderFactory, Configuration.Provider 
     override fun onCreate() {
         super.onCreate()
         registerSharedAndroidMobileApplicationContext(this)
+        OcrEngine.registerAppContext(this)
         // Pro installs Play Integrity (debug: debug provider); OSS is a no-op.
         installAppCheck()
         installSharedAndroidMobileEpubTtsFactory(

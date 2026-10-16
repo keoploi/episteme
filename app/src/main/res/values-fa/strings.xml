@@ -166,4 +166,6 @@
     <string name="audiobooks_your_audiobooks">کتاب‌های صوتی شما</string>
     <string name="audiobooks_sample_preview">پیش‌نمایشی از نحوهٔ نمایش صدای وارد شده</string>
     <string name="audiobooks_imported_files_desc">پرونده‌های صوتی وارد شده</string>
+    <string name="ocr_language_persian">فارسی + انگلیسی</string>
+    <string name="ocr_language_persian_fast">فقط فارسی (سریع‌تر)</string>
 </resources>
