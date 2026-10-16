@@ -580,6 +580,7 @@ fun PdfViewerScreen(
 
     var isBackgroundIndexing by remember { mutableStateOf(false) }
     var backgroundIndexingProgress by remember { mutableFloatStateOf(0f) }
+    var indexingRestartKey by remember { mutableIntStateOf(0) }
 
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
     val customFonts by viewModel.customFonts.collectAsStateWithLifecycle()
@@ -682,6 +683,7 @@ fun PdfViewerScreen(
             initialBookmarksJson = initialBookmarksJson,
             initialPage = initialPage,
             isBackgroundIndexing = pdfViewerMutableValue({ isBackgroundIndexing }, { isBackgroundIndexing = it }),
+            indexingRestartKey = pdfViewerMutableValue({ indexingRestartKey }, { indexingRestartKey = it }),
             isOss = isOss,
             isPaneFocused = isPaneFocused,
             isPasswordError = pdfViewerMutableValue({ isPasswordError }, { isPasswordError = it }),
@@ -770,6 +772,7 @@ private class PdfViewerScreenContentInputs(
     val initialBookmarksJson: String?,
     val initialPage: Int?,
     val isBackgroundIndexing: PdfViewerMutableValue<Boolean>,
+    val indexingRestartKey: PdfViewerMutableValue<Int>,
     val isOss: Boolean,
     val isPaneFocused: Boolean,
     val isPasswordError: PdfViewerMutableValue<Boolean>,
@@ -860,6 +863,7 @@ private fun PdfViewerScreenContent(
     val initialBookmarksJson = inputs.initialBookmarksJson
     val initialPage = inputs.initialPage
     var isBackgroundIndexing by inputs.isBackgroundIndexing
+    var indexingRestartKey by inputs.indexingRestartKey
     val isOss = inputs.isOss
     val isPaneFocused = inputs.isPaneFocused
     var isPasswordError by inputs.isPasswordError
@@ -3900,8 +3904,6 @@ private fun PdfViewerScreenContent(
 
     var isOcrScanning by remember { mutableStateOf(false) }
 
-    var indexingRestartKey by remember { mutableIntStateOf(0) }
-
     LaunchedEffect(effectivePdfUri, currentBookId, totalPages, indexingRestartKey) {
         if (currentBookId == null || totalPages == 0) return@LaunchedEffect
         if (isBackgroundIndexing && backgroundIndexingProgress > 0f) return@LaunchedEffect
@@ -4334,6 +4336,7 @@ private fun PdfViewerScreenContent(
         surfaceState.hasSelectedOcrLanguage = pdfViewerMutableValue({ hasSelectedOcrLanguage }, { hasSelectedOcrLanguage = it })
         surfaceState.isBackgroundIndexing = pdfViewerMutableValue({ isBackgroundIndexing }, { isBackgroundIndexing = it })
         surfaceState.backgroundIndexingProgress = pdfViewerMutableValue({ backgroundIndexingProgress }, { backgroundIndexingProgress = it })
+        surfaceState.indexingRestartKey = pdfViewerMutableValue({ indexingRestartKey }, { indexingRestartKey = it })
         surfaceState.isOcrScanning = pdfViewerMutableValue({ isOcrScanning }, { isOcrScanning = it })
         surfaceState.smartSearchResult = pdfViewerMutableValue({ smartSearchResult }, { smartSearchResult = it })
         surfaceState.currentPdfSearchResult = pdfViewerMutableValue({ currentPdfSearchResult }, { currentPdfSearchResult = it })
@@ -4551,6 +4554,7 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
     val tabStateMap = surfaceState.tabStateMap
     var isBackgroundIndexing by surfaceState.isBackgroundIndexing
     var backgroundIndexingProgress by surfaceState.backgroundIndexingProgress
+    var indexingRestartKey by surfaceState.indexingRestartKey
     var currentTtsMode by surfaceState.currentTtsMode
     val scrollPaginationToDisplayPage = surfaceState.scrollPaginationToDisplayPage
     val currentPaginationDisplayPage = surfaceState.currentPaginationDisplayPage
@@ -6981,6 +6985,7 @@ private class PdfViewerSurfaceState {
     var reflowProgressValue: Float = 0f
     lateinit var isBackgroundIndexing: PdfViewerMutableValue<Boolean>
     lateinit var backgroundIndexingProgress: PdfViewerMutableValue<Float>
+    lateinit var indexingRestartKey: PdfViewerMutableValue<Int>
     lateinit var isOcrScanning: PdfViewerMutableValue<Boolean>
     lateinit var smartSearchResult: PdfViewerMutableValue<SmartSearchResult?>
     lateinit var currentPdfSearchResult: PdfViewerMutableValue<SearchResult?>

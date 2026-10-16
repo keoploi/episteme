@@ -1596,6 +1596,7 @@ internal fun PdfPageComposable(
                         if (charCount > 0) {
                             val fullText = textPage.textPageGetText(0, charCount)
                             if (!fullText.isNullOrBlank()) {
+                                val occurrences = mutableListOf<Int>()
                                 val isAscii = searchQuery.all { it.code in 0..127 }
                                 try {
                                     val regex = if (isAscii) {
