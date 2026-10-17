@@ -546,11 +546,12 @@ internal fun saveOcrLanguage(context: Context, language: OcrLanguage) {
 
 internal fun loadOcrLanguage(context: Context): OcrLanguage {
     val prefs = context.getSharedPreferences(SETTINGS_PREFS_NAME, Context.MODE_PRIVATE)
-    val name = prefs.getString(OCR_LANGUAGE_KEY, OcrLanguage.LATIN.name)
+    val defaultLang = if (BuildConfig.FLAVOR == "oss") OcrLanguage.PERSIAN_FAST.name else OcrLanguage.LATIN.name
+    val name = prefs.getString(OCR_LANGUAGE_KEY, defaultLang)
     return try {
-        OcrLanguage.valueOf(name ?: OcrLanguage.LATIN.name)
+        OcrLanguage.valueOf(name ?: defaultLang)
     } catch (_: Exception) {
-        OcrLanguage.LATIN
+        if (BuildConfig.FLAVOR == "oss") OcrLanguage.PERSIAN_FAST else OcrLanguage.LATIN
     }
 }
 

@@ -114,15 +114,15 @@ import java.util.Date
 import java.util.UUID
 
 enum class OcrLanguage(@StringRes val displayNameRes: Int) {
+    // Two Tesseract bundles for the OSS build: fas-only is per-page faster;
+    // English+Persian is for mixed documents.
+    PERSIAN_FAST(R.string.ocr_language_persian_fast),
+    PERSIAN(R.string.ocr_language_persian),
     LATIN(R.string.ocr_language_latin),
     DEVANAGARI(R.string.ocr_language_devanagari),
     CHINESE(R.string.ocr_language_chinese),
     JAPANESE(R.string.ocr_language_japanese),
-    KOREAN(R.string.ocr_language_korean),
-    // Two Tesseract bundles for the OSS build: English+Persian is more
-    // accurate on mixed documents; fas-only is per-page faster.
-    PERSIAN(R.string.ocr_language_persian),
-    PERSIAN_FAST(R.string.ocr_language_persian_fast)
+    KOREAN(R.string.ocr_language_korean)
 }
 
 internal data class OcrSymbolInfo(

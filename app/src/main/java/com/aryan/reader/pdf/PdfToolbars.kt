@@ -383,7 +383,7 @@ internal fun PdfTopBar(
                                     sections = pdfOverflowMenuSections(
                                         hiddenTools = hiddenTools,
                                         hasHiddenToolbarTools = hiddenToolbarTools.isNotEmpty(),
-                                        isPro = BuildConfig.IS_PRO,
+                                        isPro = BuildConfig.IS_PRO || BuildConfig.FLAVOR == "oss",
                                         effectiveFileType = effectiveFileType,
                                         canPrintDocument = canPrintDocument,
                                     ),
