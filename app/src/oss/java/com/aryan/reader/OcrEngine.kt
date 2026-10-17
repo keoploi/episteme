@@ -161,11 +161,9 @@ object OcrEngine {
 
         val started = TessBaseAPI()
         if (!started.init(dataPath, langs)) {
-            // A truncated traineddata copy is the usual cause of init failure;
-            // drop the cache so the next run re-copies from assets.
-            File(dataPath, TESSDATA_DIR).listFiles()?.forEach { cache ->
-                if (cache.isFile && cache.name.endsWith(".traineddata")) cache.delete()
-            }
+            // Do not delete traineddata on failure: a transient init error would
+            // otherwise wipe the models and break every later OCR call. Just
+            // recycle and let ensureTessdata re-validate on the next attempt.
             started.recycle()
             Log.e(TAG, "Tesseract init failed for $langs")
             Timber.e("Tesseract init failed for $langs")
@@ -173,6 +171,10 @@ object OcrEngine {
         }
         // Scan as a full page (handles sparse pages and mixed layouts).
         started.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO)
+        // Preserve word spacing in the recognized text (helps Persian search)
+        // and tell Tesseract the approximate DPI of the rendered page.
+        started.setVariable("preserve_interword_spaces", "1")
+        started.setVariable("user_defined_dpi", "300")
         api = started
         activeLangs = langs
         return started

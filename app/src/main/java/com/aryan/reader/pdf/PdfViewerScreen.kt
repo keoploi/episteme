@@ -3907,6 +3907,9 @@ private fun PdfViewerScreenContent(
     LaunchedEffect(effectivePdfUri, currentBookId, totalPages, indexingRestartKey) {
         if (currentBookId == null || totalPages == 0) return@LaunchedEffect
         if (isBackgroundIndexing && backgroundIndexingProgress > 0f) return@LaunchedEffect
+        // Make sure the engine targets the selected language before any page
+        // is OCR'd, avoiding an English/fallback first pass on Persian scans.
+        OcrHelper.init(ocrLanguage)
         val selectedDocumentType = effectiveFileType
         if (selectedDocumentType != FileType.PDF && selectedDocumentType != FileType.PPTX) return@LaunchedEffect
 
@@ -5133,6 +5136,8 @@ private fun PdfViewerScreenOverlays(surfaceState: PdfViewerSurfaceState) {
 
                         currentBookId?.let {
                             pdfTextRepository.setBookLanguage(it, selected.name)
+                            isBackgroundIndexing = false
+                            backgroundIndexingProgress = 0f
                             indexingRestartKey++
                         }
 
