@@ -60,10 +60,12 @@ import kotlin.math.roundToInt
  * translation. Persian text comes back in logical order because the
  * ResultIterator visits RTL words in reading order.
  *
- * Threading: `TessBaseAPI` is not thread-safe, so the one shared instance is
- * reused across pages behind [lock] instead of being re-initialized per page.
- * The engine lives for the app's lifetime like the ML Kit recognizer; only a
- * language switch ([init]) or [release] recycles it.
+ * Threading: `TessBaseAPI` is not thread-safe, so a small pool of independent
+ * instances is kept instead of one shared engine: background page indexing then
+ * OCRs two pages in parallel (LSTM inference is single-threaded per instance),
+ * and each slot serializes its own accesses behind its own mutex.
+ * The engines live for the app's lifetime like the ML Kit recognizer; only a
+ * language switch ([init]) or [release] recycles them.
  */
 object OcrEngine {
     private const val TAG = "OcrEngine"
@@ -72,8 +74,11 @@ object OcrEngine {
     private const val TESSDATA_DIR = "tessdata"
     private const val MIN_TRAINEDDATA_BYTES = 1000
 
+    // PERSIAN_FAST decodes with the Persian model only: Tesseract merges every
+    // listed language into one engine, so listing `eng` here roughly doubles
+    // per-page recognition work. Language choice notes in `OcrLanguage` match.
     private const val LANGS_PERSIAN_PLUS_ENGLISH = "fas+eng"
-    private const val LANGS_PERSIAN_ONLY = "fas+eng"
+    private const val LANGS_PERSIAN_ONLY = "fas"
     private const val LANGS_FALLBACK = "eng"
 
     @Volatile
@@ -83,9 +88,18 @@ object OcrEngine {
     private var requestedLangs: String = LANGS_FALLBACK
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
-    private val lock = Mutex()
-    private var api: TessBaseAPI? = null
-    private var activeLangs: String? = null
+
+    /** One Tesseract instance per slot; each slot guards itself with [gate]. */
+    private class EngineSlot {
+        val gate = Mutex()
+        var api: TessBaseAPI? = null
+        var langs: String? = null
+    }
+
+    // Two slots on >=4-core devices: page recognition runs one-per-core-pair,
+    // hiding much of a page's latency behind the next page's.
+    private val slots =
+        List(if (Runtime.getRuntime().availableProcessors() >= 4) 2 else 1) { EngineSlot() }
 
     /** Registered from `MyApplication.onCreate`; the engine's only Context source. */
     fun registerAppContext(context: Context) {
@@ -97,7 +111,7 @@ object OcrEngine {
         requestedLangs = resolveTesseractLangs(language)
         ioScope.launch {
             try {
-                lock.withLock { prepareLocked() }
+                slots.first().gate.withLock { prepareSlotLocked(slots.first()) }
             } catch (e: Exception) {
                 Log.e(TAG, "Tesseract warm-up failed", e)
                 Timber.e(e, "Tesseract warm-up failed")
@@ -114,9 +128,16 @@ object OcrEngine {
         if (bitmap.width <= 0 || bitmap.height <= 0) return null
         return withContext(Dispatchers.IO) {
             try {
-                lock.withLock {
-                    val tess = prepareLocked() ?: return@withLock null
-                    ocrBitmap(tess, bitmap)
+                val free = slots.firstOrNull { it.gate.tryLock() }
+                if (free != null) {
+                    try {
+                        ocrOnSlot(free, bitmap)
+                    } finally {
+                        free.gate.unlock()
+                    }
+                } else {
+                    // Every slot busy: wait on the first instead of queueing.
+                    slots.first().gate.withLock { ocrOnSlot(slots.first(), bitmap) }
                 }
             } catch (e: Exception) {
                 if (e is CancellationException) throw e
@@ -127,25 +148,33 @@ object OcrEngine {
         }
     }
 
-    /** Releases the engine instance. Safe to call repeatedly and before init. */
+    /** Releases every engine instance. Safe to call repeatedly and before init. */
     fun release() {
         ioScope.launch {
-            lock.withLock {
-                api?.recycle()
-                api = null
-                activeLangs = null
+            slots.forEach { slot ->
+                slot.gate.withLock {
+                    slot.api?.recycle()
+                    slot.api = null
+                    slot.langs = null
+                }
             }
         }
     }
 
-    /** Returns the usable engine or null; caller must hold [lock], runs on IO. */
-    private fun prepareLocked(): TessBaseAPI? {
+    /** Runs one recognition on an already-locked [slot]. */
+    private fun ocrOnSlot(slot: EngineSlot, bitmap: Bitmap): OcrResult? {
+        val tess = prepareSlotLocked(slot) ?: return null
+        return ocrBitmap(tess, bitmap)
+    }
+
+    /** Returns the usable engine for [slot] or null; caller must hold slot's gate. */
+    private fun prepareSlotLocked(slot: EngineSlot): TessBaseAPI? {
         val langs = requestedLangs
-        api?.let { existing ->
-            if (activeLangs == langs) return existing
+        slot.api?.let { existing ->
+            if (slot.langs == langs) return existing
             existing.recycle()
-            api = null
-            activeLangs = null
+            slot.api = null
+            slot.langs = null
         }
 
         val context = appContext ?: run {
@@ -175,8 +204,8 @@ object OcrEngine {
         // and tell Tesseract the approximate DPI of the rendered page.
         started.setVariable("preserve_interword_spaces", "1")
         started.setVariable("user_defined_dpi", "300")
-        api = started
-        activeLangs = langs
+        slot.api = started
+        slot.langs = langs
         return started
     }
 
@@ -205,7 +234,8 @@ object OcrEngine {
             val target = File(destDir, name)
             if (target.length() < MIN_TRAINEDDATA_BYTES) {
                 try {
-                    val tmp = File(destDir, "$name.tmp")
+                    // Unique suffix: two engine slots can copy concurrently on first run.
+                    val tmp = File(destDir, "$name.tmp-${System.nanoTime()}")
                     context.assets.open("$TESSDATA_DIR/$name").use { input ->
                         tmp.outputStream().use { input.copyTo(it) }
                     }

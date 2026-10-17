@@ -401,6 +401,7 @@ import java.io.ByteArrayOutputStream
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import java.util.concurrent.atomic.AtomicInteger
 import kotlin.math.PI
 import kotlin.math.abs
 import kotlin.math.atan2
@@ -3953,25 +3954,38 @@ private fun PdfViewerScreenContent(
                     bgDoc = PdfiumEngineProvider.withPdfium {
                         pdfiumCore.newDocument(openedBgPfd, documentPassword)
                     }
+                    val pdfDoc = bgDoc ?: return@withContext
 
-                    for (pageIndex in pagesToIndex) {
-                        if (!isActive) break
+                    // OCR two pages at a time: rendering stays serialized by the
+                    // pdfium mutex, but recognition overlaps across the engine's
+                    // Tesseract slots, roughly halving per-book indexing time.
+                    val cursor = AtomicInteger(0)
+                    val completedPages = AtomicInteger(0)
+                    // withContext's receiver is a scope: children are awaited and
+                    // cancelled with it, so no extra scope is needed here.
+                    repeat(2) {
+                        launch {
+                            while (true) {
+                                val i = cursor.getAndIncrement()
+                                if (i >= pagesToIndex.size || !isActive) break
+                                val pageIndex = pagesToIndex[i]
+                                try {
+                                    pdfTextRepository.indexPage(
+                                        bookId = currentBookId!!,
+                                        document = pdfDoc,
+                                        pageIndex = pageIndex,
+                                        onOcrModelDownloading = { isOcrModelDownloading = true })
+                                } catch (e: Exception) {
+                                    Timber.e(e, "Indexer: Failed on page $pageIndex")
+                                }
 
-                        try {
-                            pdfTextRepository.indexPage(
-                                bookId = currentBookId!!,
-                                document = bgDoc,
-                                pageIndex = pageIndex,
-                                onOcrModelDownloading = { isOcrModelDownloading = true })
-                        } catch (e: Exception) {
-                            Timber.e(e, "Indexer: Failed on page $pageIndex")
-                        }
-
-                        completed++
-                        if (completed % 5 == 0 || completed == totalToDo) {
-                            val totalIndexedSoFar = initialIndexedCount + completed
-                            backgroundIndexingProgress =
-                                totalIndexedSoFar.toFloat() / totalPages.toFloat()
+                                val done = completedPages.incrementAndGet()
+                                if (done % 5 == 0 || done == totalToDo) {
+                                    val totalIndexedSoFar = initialIndexedCount + done
+                                    backgroundIndexingProgress =
+                                        totalIndexedSoFar.toFloat() / totalPages.toFloat()
+                                }
+                            }
                         }
                     }
                 } else {
