@@ -68,42 +68,28 @@ import kotlin.math.roundToInt
 object OcrEngine {
     private const val TAG = "OcrEngine"
 
-    // ~140 DPI on a portrait A4 scan; optimal character height for Tesseract LSTM
-    // (30-35px) and avoids high CPU/memory burn on mobile devices.
-    private const val MAX_OCR_WIDTH = 1200
+    private const val MAX_OCR_WIDTH = 1600
     private const val TESSDATA_DIR = "tessdata"
     private const val MIN_TRAINEDDATA_BYTES = 1000
 
     private const val LANGS_PERSIAN_PLUS_ENGLISH = "fas+eng"
-    private const val LANGS_PERSIAN_ONLY = "fas"
+    private const val LANGS_PERSIAN_ONLY = "fas+eng"
     private const val LANGS_FALLBACK = "eng"
 
     @Volatile
     private var appContext: Context? = null
 
     @Volatile
-    private var requestedLangs: String = LANGS_PERSIAN_ONLY
+    private var requestedLangs: String = LANGS_FALLBACK
 
     private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val lock = Mutex()
     private var api: TessBaseAPI? = null
     private var activeLangs: String? = null
 
-    private fun configureEnvironment() {
-        try {
-            // Constrain OpenMP thread pool to 2 threads to prevent 100% CPU saturation
-            // across heterogeneous mobile cores, avoiding thermal throttling and barrier stalls.
-            android.system.Os.setenv("OMP_THREAD_LIMIT", "2", true)
-            android.system.Os.setenv("OMP_NUM_THREADS", "2", true)
-        } catch (e: Exception) {
-            Log.w(TAG, "Failed to set OpenMP environment", e)
-        }
-    }
-
     /** Registered from `MyApplication.onCreate`; the engine's only Context source. */
     fun registerAppContext(context: Context) {
         appContext = context.applicationContext
-        configureEnvironment()
     }
 
     /** Mirrors ML Kit init: records the script and warms the engine in the background. */
@@ -173,7 +159,6 @@ object OcrEngine {
             return null
         }
 
-        configureEnvironment()
         val started = TessBaseAPI()
         if (!started.init(dataPath, langs)) {
             // A truncated traineddata copy is the usual cause of init failure;
@@ -188,7 +173,6 @@ object OcrEngine {
         }
         // Scan as a full page (handles sparse pages and mixed layouts).
         started.setPageSegMode(TessBaseAPI.PageSegMode.PSM_AUTO)
-        started.setVariable("debug_file", "/dev/null")
         api = started
         activeLangs = langs
         return started
